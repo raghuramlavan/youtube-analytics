@@ -356,8 +356,10 @@ def generate_html(stats, query, source_file):
         </div>"""
 
     # ── Video table rows ──
+    # IMPORTANT: pass video index not raw JSON in onclick to avoid quote-breaking HTML attributes
     video_rows = ""
-    for v in sorted(stats["video_summaries"], key=lambda x: x["published_at"], reverse=True)[:500]:
+    sorted_videos = sorted(stats["video_summaries"], key=lambda x: x["published_at"], reverse=True)[:500]
+    for idx, v in enumerate(sorted_videos):
         s = v["sentiments"]
         pos = s.get("positive", 0); neg = s.get("negative", 0); neu = s.get("neutral", 0)
         tot_s = pos + neg + neu or 1
@@ -369,16 +371,19 @@ def generate_html(stats, query, source_file):
         top_brand   = v["brands"][0][0]   if v["brands"]   else "—"
         yt_link = f"https://youtube.com/watch?v={v['video_id']}" if v.get("video_id") else "#"
         analyzed_icon = "✅" if v.get("is_analyzed") else "⏳"
+        # Escape title for safe display in HTML (not in JS)
+        safe_title = v["title"].replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
         bar = (f'<div style="display:flex;height:6px;border-radius:3px;overflow:hidden;min-width:80px">'
                f'<div style="width:{pos*100//tot_s}%;background:#22c55e"></div>'
                f'<div style="width:{neu*100//tot_s}%;background:#f59e0b"></div>'
                f'<div style="width:{neg*100//tot_s}%;background:#ef4444"></div></div>'
                f'<div style="font-size:10px;color:#64748b;margin-top:2px">+{pos} /{neu} -{neg}</div>')
+        # Use index reference — never embed raw JSON in HTML attributes
         video_rows += (
-            f'<tr onclick="showVideoModal({js(v)})" style="cursor:pointer">'
+            f'<tr onclick="showVideoModal({idx})" style="cursor:pointer">'
             f'<td>{v["published_at"]}</td>'
             f'<td><a href="{yt_link}" target="_blank" onclick="event.stopPropagation()" '
-            f'style="color:#60a5fa;text-decoration:none">{v["title"]}</a></td>'
+            f'style="color:#60a5fa;text-decoration:none">{safe_title}</a></td>'
             f'<td style="color:#94a3b8">{v["channel"]}</td>'
             f'<td style="text-align:right">{v["view_count"]:,}</td>'
             f'<td style="text-align:right">{v["total_comments_fetched"]:,}</td>'
@@ -712,6 +717,18 @@ def generate_html(stats, query, source_file):
   const COMP_NEG   = {stats['comp_neg']};
   const COMP_NEU   = {stats['comp_neu']};
   const TOP_LIKED  = {js(stats['top_liked'])};
+  const VIDEO_DATA = {js(sorted_videos)};
+
+  // ── HTML escape helper (prevents comment text breaking innerHTML) ─────────────
+  function esc(str) {{
+    if (!str) return '';
+    return String(str)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+  }}
 
   // ── Chart colours ─────────────────────────────────────────────────────────────
   Chart.defaults.color = '#64748b';
@@ -893,16 +910,17 @@ def generate_html(stats, query, source_file):
           <span style="background:${{smap[c.sentiment]}};color:${{scol[c.sentiment]}};padding:2px 8px;border-radius:12px;font-size:11px;font-weight:600">
             ${{semi[c.sentiment]||'💬'}} ${{c.sentiment||'—'}}
           </span>
-          <span style="color:#64748b;font-size:11px">${{c.author}}</span>
+          <span style="color:#64748b;font-size:11px">${{esc(c.author)}}</span>
           <span style="margin-left:auto;color:#f59e0b;font-size:11px">❤ ${{(c.likes||0).toLocaleString()}}</span>
           <span style="color:#475569;font-size:11px">📅 ${{c.date}}</span>
         </div>
-        <div style="font-size:13px;color:#e2e8f0;line-height:1.5">"${{c.text}}"</div>
+        <div style="font-size:13px;color:#e2e8f0;line-height:1.5">"${{esc(c.text)}}"</div>
       </div>`).join('');
   }}
 
   // ── Video modal ───────────────────────────────────────────────────────────────
-  function showVideoModal(v) {{
+  function showVideoModal(idx) {{
+    const v = VIDEO_DATA[idx];
     document.getElementById('modalTitle').textContent = v.title;
     const s = v.sentiments||{{}};
     const pos=s.positive||0, neg=s.negative||0, neu=s.neutral||0, tot=pos+neg+neu||1;
@@ -942,10 +960,10 @@ def generate_html(stats, query, source_file):
         ${{v.top_comments.map(c=>`<div style="padding:9px;background:#0f172a;border-radius:8px;margin-bottom:7px">
           <div style="display:flex;gap:8px;align-items:center;margin-bottom:4px;flex-wrap:wrap">
             <span style="color:${{scol[c.sentiment]||'#94a3b8'}};font-size:11px;font-weight:600">${{c.sentiment||'—'}}</span>
-            <span style="color:#475569;font-size:11px">${{c.author}}</span>
+            <span style="color:#475569;font-size:11px">${{esc(c.author)}}</span>
             <span style="margin-left:auto;color:#f59e0b;font-size:11px">❤ ${{c.likes}}</span>
           </div>
-          <div style="font-size:12px;color:#cbd5e1;line-height:1.5">${{c.text}}</div>
+          <div style="font-size:12px;color:#cbd5e1;line-height:1.5">${{esc(c.text)}}</div>
         </div>`).join('')}}</div>`:''}}
       <div style="margin-top:14px">
         <a href="https://youtube.com/watch?v=${{v.video_id}}" target="_blank"
