@@ -1,0 +1,713 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>YouTube Comments Analyzer - DeepSeek Analysis Dashboard</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .header {
+            background: white;
+            border-radius: 15px;
+            padding: 25px;
+            margin-bottom: 25px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+        }
+
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+            font-size: 28px;
+        }
+
+        .subtitle {
+            color: #666;
+            margin-bottom: 20px;
+            font-size: 14px;
+        }
+
+        .upload-area {
+            border: 2px dashed #667eea;
+            border-radius: 10px;
+            padding: 40px;
+            text-align: center;
+            background: #f8f9ff;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .upload-area:hover {
+            border-color: #764ba2;
+            background: #f0f2ff;
+        }
+
+        .upload-area.drag-over {
+            border-color: #4cae4c;
+            background: #e8f5e9;
+        }
+
+        .file-info {
+            margin-top: 15px;
+            color: #666;
+            font-size: 14px;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 25px;
+        }
+
+        .stat-card {
+            background: white;
+            border-radius: 15px;
+            padding: 20px;
+            text-align: center;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+        }
+
+        .stat-number {
+            font-size: 36px;
+            font-weight: bold;
+            color: #667eea;
+        }
+
+        .stat-label {
+            color: #666;
+            margin-top: 5px;
+            font-size: 14px;
+        }
+
+        .charts-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(450px, 1fr));
+            gap: 25px;
+            margin-bottom: 25px;
+        }
+
+        .chart-card {
+            background: white;
+            border-radius: 15px;
+            padding: 20px;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+        }
+
+        .chart-title {
+            font-size: 18px;
+            font-weight: bold;
+            margin-bottom: 15px;
+            color: #333;
+            border-left: 4px solid #667eea;
+            padding-left: 12px;
+        }
+
+        canvas {
+            max-height: 400px;
+        }
+
+        .table-container {
+            background: white;
+            border-radius: 15px;
+            padding: 20px;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+            overflow-x: auto;
+        }
+
+        .section-title {
+            font-size: 20px;
+            font-weight: bold;
+            margin-bottom: 15px;
+            color: #333;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .section-title::before {
+            content: '';
+            width: 4px;
+            height: 24px;
+            background: #667eea;
+            border-radius: 2px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        th {
+            background: #f8f9ff;
+            padding: 12px;
+            text-align: left;
+            font-weight: 600;
+            color: #333;
+            border-bottom: 2px solid #e0e0e0;
+        }
+
+        td {
+            padding: 12px;
+            border-bottom: 1px solid #e0e0e0;
+        }
+
+        tr:hover {
+            background: #f8f9ff;
+        }
+
+        .sentiment-positive {
+            color: #4cae4c;
+            font-weight: bold;
+        }
+
+        .sentiment-negative {
+            color: #d9534f;
+            font-weight: bold;
+        }
+
+        .sentiment-neutral {
+            color: #f0ad4e;
+            font-weight: bold;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            display: none;
+        }
+
+        .spinner {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 15px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .filter-bar {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+
+        .filter-input {
+            flex: 1;
+            padding: 8px 12px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 14px;
+        }
+
+        .export-btn {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+
+        .export-btn:hover {
+            background: #764ba2;
+        }
+
+        @media (max-width: 768px) {
+            .charts-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .stats-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📊 YouTube Comments Analyzer</h1>
+            <div class="subtitle">Powered by DeepSeek AI - Player mentions, sentiment analysis & theme extraction</div>
+            
+            <div class="upload-area" id="uploadArea">
+                <div>📁 Drag & Drop or Click to Upload JSON File</div>
+                <div class="file-info">Accepts JSON files generated by analyze_comments_deepseek.py</div>
+                <input type="file" id="fileInput" accept=".json" style="display: none;">
+            </div>
+        </div>
+
+        <div id="content" style="display: none;">
+            <div class="stats-grid" id="statsGrid"></div>
+            
+            <div class="charts-grid">
+                <div class="chart-card">
+                    <div class="chart-title">🏆 Top 10 Players Mentioned</div>
+                    <canvas id="playersChart"></canvas>
+                </div>
+                <div class="chart-card">
+                    <div class="chart-title">🌍 Top 10 Countries Mentioned</div>
+                    <canvas id="countriesChart"></canvas>
+                </div>
+                <div class="chart-card">
+                    <div class="chart-title">💭 Top 10 Comment Themes</div>
+                    <canvas id="themesChart"></canvas>
+                </div>
+                <div class="chart-card">
+                    <div class="chart-title">😊 Sentiment Distribution</div>
+                    <canvas id="sentimentChart"></canvas>
+                </div>
+            </div>
+
+            <div class="table-container">
+                <div class="section-title">
+                    📝 Comments Analysis Table
+                    <button class="export-btn" id="exportCSV">Export to CSV</button>
+                </div>
+                <div class="filter-bar">
+                    <input type="text" class="filter-input" id="searchInput" placeholder="Search by player, country, theme, or comment...">
+                    <select class="filter-input" id="sentimentFilter">
+                        <option value="">All Sentiments</option>
+                        <option value="Positive">Positive</option>
+                        <option value="Negative">Negative</option>
+                        <option value="Neutral">Neutral</option>
+                    </select>
+                </div>
+                <div id="tableWrapper">
+                    <table id="commentsTable">
+                        <thead>
+                            <tr>
+                                <th>Comment Text</th>
+                                <th>Player</th>
+                                <th>Country</th>
+                                <th>Sentiment</th>
+                                <th>Theme</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tableBody"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <div class="loading" id="loading">
+            <div class="spinner"></div>
+            <div>Loading and processing data...</div>
+        </div>
+    </div>
+
+    <script>
+        let analysisData = null;
+        let charts = {};
+
+        // File upload handling
+        const uploadArea = document.getElementById('uploadArea');
+        const fileInput = document.getElementById('fileInput');
+        const loading = document.getElementById('loading');
+        const content = document.getElementById('content');
+
+        uploadArea.addEventListener('click', () => fileInput.click());
+        uploadArea.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadArea.classList.add('drag-over');
+        });
+        uploadArea.addEventListener('dragleave', () => {
+            uploadArea.classList.remove('drag-over');
+        });
+        uploadArea.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadArea.classList.remove('drag-over');
+            const file = e.dataTransfer.files[0];
+            if (file && file.name.endsWith('.json')) {
+                processFile(file);
+            } else {
+                alert('Please upload a JSON file');
+            }
+        });
+
+        fileInput.addEventListener('change', (e) => {
+            if (e.target.files[0]) {
+                processFile(e.target.files[0]);
+            }
+        });
+
+        function processFile(file) {
+            loading.style.display = 'block';
+            content.style.display = 'none';
+            
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                try {
+                    const data = JSON.parse(e.target.result);
+                    analysisData = extractComments(data);
+                    displayDashboard();
+                    loading.style.display = 'none';
+                    content.style.display = 'block';
+                } catch (error) {
+                    alert('Error parsing JSON file: ' + error.message);
+                    loading.style.display = 'none';
+                }
+            };
+            reader.readAsText(file);
+        }
+
+        function extractComments(data) {
+            const comments = [];
+            
+            // Handle different JSON structures
+            if (data.videos) {
+                for (const video of data.videos) {
+                    if (video.comments) {
+                        extractCommentsFromArray(video.comments, comments);
+                    }
+                }
+            } else if (data.comments) {
+                extractCommentsFromArray(data.comments, comments);
+            }
+            
+            return {
+                comments: comments,
+                metadata: {
+                    analyzed_at: data.analyzed_at,
+                    analysis_model: data.analysis_model,
+                    analysis_provider: data.analysis_provider
+                }
+            };
+        }
+
+        function extractCommentsFromArray(commentsArray, outputArray) {
+            for (const comment of commentsArray) {
+                // Extract main comment
+                outputArray.push({
+                    text: comment.text || '',
+                    player_name: comment.player_name,
+                    country: comment.country,
+                    sentiment: comment.sentiment,
+                    theme: comment.theme,
+                    comment_id: comment.comment_id,
+                    author: comment.author,
+                    like_count: comment.like_count
+                });
+                
+                // Extract replies
+                if (comment.replies && comment.replies.length > 0) {
+                    for (const reply of comment.replies) {
+                        outputArray.push({
+                            text: reply.text || '',
+                            player_name: reply.player_name,
+                            country: reply.country,
+                            sentiment: reply.sentiment,
+                            theme: reply.theme,
+                            comment_id: reply.comment_id,
+                            author: reply.author,
+                            like_count: reply.like_count
+                        });
+                    }
+                }
+            }
+        }
+
+        function displayDashboard() {
+            const comments = analysisData.comments;
+            
+            // Calculate statistics
+            const stats = {
+                total: comments.length,
+                withPlayers: comments.filter(c => c.player_name && c.player_name !== 'null').length,
+                uniquePlayers: new Set(comments.filter(c => c.player_name && c.player_name !== 'null').map(c => c.player_name)).size,
+                uniqueCountries: new Set(comments.filter(c => c.country && c.country !== 'null').map(c => c.country)).size,
+                sentiments: {
+                    Positive: comments.filter(c => c.sentiment === 'Positive').length,
+                    Negative: comments.filter(c => c.sentiment === 'Negative').length,
+                    Neutral: comments.filter(c => c.sentiment === 'Neutral').length
+                }
+            };
+            
+            // Display stats
+            document.getElementById('statsGrid').innerHTML = `
+                <div class="stat-card">
+                    <div class="stat-number">${stats.total.toLocaleString()}</div>
+                    <div class="stat-label">Total Comments Analyzed</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number">${stats.withPlayers.toLocaleString()}</div>
+                    <div class="stat-label">Comments Mentioning Players</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number">${stats.uniquePlayers}</div>
+                    <div class="stat-label">Unique Players</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number">${stats.uniqueCountries}</div>
+                    <div class="stat-label">Countries Mentioned</div>
+                </div>
+            `;
+            
+            // Calculate top items
+            const topPlayers = getTopItems(comments, 'player_name', 10);
+            const topCountries = getTopItems(comments, 'country', 10);
+            const topThemes = getTopItems(comments, 'theme', 10);
+            
+            // Create charts
+            createBarChart('playersChart', topPlayers, '🏆 Top Players');
+            createBarChart('countriesChart', topCountries, '🌍 Top Countries');
+            createBarChart('themesChart', topThemes, '💭 Top Themes', true);
+            createPieChart('sentimentChart', stats.sentiments);
+            
+            // Display table
+            displayTable(comments);
+        }
+
+        function getTopItems(comments, field, limit) {
+            const counts = {};
+            for (const comment of comments) {
+                let value = comment[field];
+                if (value && value !== 'null' && value !== 'None' && value !== 'null' && value.trim() !== '') {
+                    counts[value] = (counts[value] || 0) + 1;
+                }
+            }
+            
+            return Object.entries(counts)
+                .sort((a, b) => b[1] - a[1])
+                .slice(0, limit)
+                .map(([name, count]) => ({ name, count }));
+        }
+
+        function createBarChart(canvasId, data, label, isTheme = false) {
+            const canvas = document.getElementById(canvasId);
+            if (charts[canvasId]) {
+                charts[canvasId].destroy();
+            }
+            
+            // Truncate long labels
+            const labels = data.map(d => {
+                let label = d.name;
+                if (isTheme && label.length > 30) {
+                    label = label.substring(0, 27) + '...';
+                }
+                return label;
+            });
+            const counts = data.map(d => d.count);
+            
+            charts[canvasId] = new Chart(canvas, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: label,
+                        data: counts,
+                        backgroundColor: 'rgba(102, 126, 234, 0.7)',
+                        borderColor: 'rgba(102, 126, 234, 1)',
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: true,
+                    plugins: {
+                        legend: {
+                            display: false
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    return `Count: ${context.parsed.y}`;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            title: {
+                                display: true,
+                                text: 'Number of Mentions'
+                            }
+                        },
+                        x: {
+                            ticks: {
+                                maxRotation: 45,
+                                minRotation: 45
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        function createPieChart(canvasId, data) {
+            const canvas = document.getElementById(canvasId);
+            if (charts[canvasId]) {
+                charts[canvasId].destroy();
+            }
+            
+            charts[canvasId] = new Chart(canvas, {
+                type: 'pie',
+                data: {
+                    labels: Object.keys(data),
+                    datasets: [{
+                        data: Object.values(data),
+                        backgroundColor: ['#4cae4c', '#d9534f', '#f0ad4e'],
+                        borderWidth: 2
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: true,
+                    plugins: {
+                        legend: {
+                            position: 'bottom'
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    const total = Object.values(data).reduce((a, b) => a + b, 0);
+                                    const percentage = ((context.parsed / total) * 100).toFixed(1);
+                                    return `${context.label}: ${context.parsed} (${percentage}%)`;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        let currentComments = [];
+
+        function displayTable(comments) {
+            currentComments = comments;
+            applyFilters();
+        }
+
+        function applyFilters() {
+            const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+            const sentimentFilter = document.getElementById('sentimentFilter').value;
+            
+            let filtered = currentComments;
+            
+            // Apply search filter
+            if (searchTerm) {
+                filtered = filtered.filter(c => 
+                    (c.text && c.text.toLowerCase().includes(searchTerm)) ||
+                    (c.player_name && c.player_name.toLowerCase().includes(searchTerm)) ||
+                    (c.country && c.country.toLowerCase().includes(searchTerm)) ||
+                    (c.theme && c.theme.toLowerCase().includes(searchTerm))
+                );
+            }
+            
+            // Apply sentiment filter
+            if (sentimentFilter) {
+                filtered = filtered.filter(c => c.sentiment === sentimentFilter);
+            }
+            
+            renderTable(filtered);
+        }
+
+        function renderTable(comments) {
+            const tbody = document.getElementById('tableBody');
+            tbody.innerHTML = '';
+            
+            const displayComments = comments.slice(0, 100); // Show first 100 for performance
+            
+            for (const comment of displayComments) {
+                const row = tbody.insertRow();
+                
+                // Comment text (truncated)
+                const textCell = row.insertCell(0);
+                let text = comment.text || '';
+                if (text.length > 100) {
+                    text = text.substring(0, 97) + '...';
+                }
+                textCell.textContent = text;
+                textCell.title = comment.text; // Show full text on hover
+                
+                // Player
+                const playerCell = row.insertCell(1);
+                playerCell.textContent = comment.player_name && comment.player_name !== 'null' ? comment.player_name : '-';
+                
+                // Country
+                const countryCell = row.insertCell(2);
+                countryCell.textContent = comment.country && comment.country !== 'null' ? comment.country : '-';
+                
+                // Sentiment
+                const sentimentCell = row.insertCell(3);
+                sentimentCell.textContent = comment.sentiment || 'Neutral';
+                sentimentCell.className = `sentiment-${(comment.sentiment || 'Neutral').toLowerCase()}`;
+                
+                // Theme
+                const themeCell = row.insertCell(4);
+                themeCell.textContent = comment.theme || '-';
+            }
+            
+            if (comments.length > 100) {
+                const row = tbody.insertRow();
+                const cell = row.insertCell(0);
+                cell.colSpan = 5;
+                cell.textContent = `Showing first 100 of ${comments.length} comments. Use filters to narrow results.`;
+                cell.style.textAlign = 'center';
+                cell.style.padding = '20px';
+                cell.style.color = '#666';
+            }
+        }
+
+        // Event listeners for filters
+        document.getElementById('searchInput').addEventListener('input', () => applyFilters());
+        document.getElementById('sentimentFilter').addEventListener('change', () => applyFilters());
+        
+        // Export to CSV
+        document.getElementById('exportCSV').addEventListener('click', () => {
+            const comments = currentComments;
+            const headers = ['Comment Text', 'Player', 'Country', 'Sentiment', 'Theme', 'Author', 'Like Count'];
+            const csvRows = [headers];
+            
+            for (const comment of comments) {
+                csvRows.push([
+                    `"${(comment.text || '').replace(/"/g, '""')}"`,
+                    comment.player_name && comment.player_name !== 'null' ? comment.player_name : '',
+                    comment.country && comment.country !== 'null' ? comment.country : '',
+                    comment.sentiment || '',
+                    comment.theme || '',
+                    comment.author || '',
+                    comment.like_count || ''
+                ]);
+            }
+            
+            const csvContent = csvRows.map(row => row.join(',')).join('\n');
+            const blob = new Blob([csvContent], { type: 'text/csv' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `comment_analysis_${new Date().toISOString().slice(0,19)}.csv`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        });
+    </script>
+</body>
+</html>

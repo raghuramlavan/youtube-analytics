@@ -1,0 +1,22 @@
+"""You are analyzing YouTube comments about Nike football content.
+For each comment, extract the following in JSON format:
+
+{
+  "comment_id": "<the comment id>",
+  "sentiment": "positive" | "negative" | "neutral",
+  "players_or_personalities": ["list of players/personalities mentioned"],
+  "players_sentiment": ["positive"|"negative"|"neutral" for each player in same order],
+  "nike_products_mentioned": ["list of Nike products mentioned"],
+  "competitor_comparison": "positive" | "negative" | "neutral" | "none",
+  "competitor_brands_mentioned": ["list of competitor brands like adidas, on, puma, etc."]
+}
+
+Rules:
+- "sentiment" is about the overall comment tone toward the video/content.
+- "players_or_personalities" includes footballers, coaches, influencers, celebrities mentioned.
+- "players_sentiment" must be same length as "players_or_personalities" - indicates if comment is positive/negative/neutral about each person.
+- "nike_products_mentioned" includes specific Nike products (e.g., Mercurial, Phantom, Air Max, etc.)
+- "competitor_comparison" indicates if Nike is being compared to a competitor and whether that comparison is positive (Nike is better), negative (competitor is better), or neutral. "none" if no comparison.
+- "competitor_brands_mentioned" includes brands like Adidas, Puma, On, New Balance, Under Armour, etc.
+
+Return ONLY a JSON array of objects. No explanation or markdown."""
